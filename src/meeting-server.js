@@ -9,9 +9,12 @@ server.listen(3456, "127.0.0.1",() => {
 
 let io = socketIo.listen(server);
 
+let memberRoomIdMap = {}
+
 io.sockets.on('connection', socket => {
     socket.on("join", (roomId, username) => {
         socket.join(roomId);
+        memberRoomIdMap[socket.id] = roomId;
 
         let joinedRoom = io.sockets.adapter.rooms[roomId]; //房间
 
@@ -25,14 +28,14 @@ io.sockets.on('connection', socket => {
         console.log(`room: ${roomId}  custom users number: ${users}`);
     });
 
-    socket.on('send-offer', (socketId, desc) => {
-        io.to(socketId).emit('recv-offer', socket.id, desc); //告诉是哪个socket发的offer
+    socket.on('send-offer', (socketId, hisJoinName, desc) => {
+        io.to(socketId).emit('recv-offer', socket.id, hisJoinName, desc); //告诉是哪个socket发的offer
         console.log(`${socket.id} send offer to ${socketId}`);
         console.log(`offer content: ${desc}`);
     });
 
-    socket.on('send-answer', (socketId, desc) => {
-        io.to(socketId).emit('recv-answer', socket.id, desc); //告诉是哪个socket发的answer
+    socket.on('send-answer', (socketId, hisJoinName, desc) => {
+        io.to(socketId).emit('recv-answer', socket.id, hisJoinName, desc); //告诉是哪个socket发的answer
         console.log(`${socket.id} send answer to ${socketId}`);
         console.log(`answer content: ${desc}`);
     });
@@ -56,6 +59,20 @@ io.sockets.on('connection', socket => {
         let membersCount = joinedRoom? Object.keys(joinedRoom.sockets).length:0;
         console.log(`room:${roomId} current members number: ${membersCount}`);
     });
+
+    socket.on('disconnection', hisSocket => {
+        console.log('checked disconnect');
+        if(memberRoomIdMap.hasOwnProperty(hisSocket.id)){
+            let roomId = memberRoomIdMap[hisSocket.id];
+            socket.in(roomId).emit('recv-bye', hisSocket.id);
+            socket.emit('recv-leaved', roomId, hisSocket.id);
+            socket.leave(roomId);
+            console.log(`${hisSocket.id} send bye to room:${roomId}`);
+            let joinedRoom = io.sockets.adapter.rooms[roomId]; //房间
+            let membersCount = joinedRoom? Object.keys(joinedRoom.sockets).length:0;
+            console.log(`room:${roomId} current members number: ${membersCount}`);
+        }
+    })
 });
 
 io.on('disconnection', socket => {

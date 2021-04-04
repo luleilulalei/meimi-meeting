@@ -6,11 +6,13 @@ import router from './router'
 import socketIoClient from 'socket.io-client'
 import webrtcadapter from 'webrtc-adapter'
 import Elementui from 'element-ui'
+import { Message } from 'element-ui';
 import 'element-ui/lib/theme-chalk/index.css';
 
 Vue.config.productionTip = false
 
 Vue.prototype.$socketIoClient = socketIoClient
+// Vue.prototype.$message = Message;
 Vue.use(Elementui)
 
 

@@ -19,7 +19,10 @@
                     </el-row>
                     <el-row>
                         <el-col :span="3" :push="21">
-                            <video class="min-list" ref="mainMin" autoplay></video>
+                            <el-tooltip class="item" effect="dark" placement="left">
+                                <div slot="content">{{joinName}}</div>
+                                <video class="min-list" ref="mainMin" autoplay></video>
+                            </el-tooltip>
                             <el-button
                                 class="page-icon"
                                 type="text"
@@ -30,10 +33,15 @@
                             ></el-button>
                             
                             <div v-for="offset in pageSize" :key="offset">
-                                <video autoplay v-if="(offset -1 + pageSize * page) < count && others[offset + pageSize * page -1].video" class="min-list" :ref="'user' + (offset-1)"></video>
-                                <span v-else-if="(offset - 1 + pageSize * page) < count" class="min-list">
-                                    {{others[offset -1  + pageSize * page].username.substr(0, 1)}}
-                                </span>
+                                 <el-tooltip v-if="(offset - 1 + pageSize * page) < count" class="item" effect="dark" placement="left">
+                                     {{others[offset -1  + pageSize * page].joinName}}
+                                    <div slot="content">{{others[offset -1  + pageSize * page].joinName}}</div>
+                                    <video autoplay v-if="(offset -1 + pageSize * page) < count && others[offset + pageSize * page -1].video" class="min-list" :ref="'user' + (offset-1)"></video>
+                                    <span v-else-if="(offset - 1 + pageSize * page) < count" class="min-list">
+                                        {{others[offset -1  + pageSize * page].joinName.substr(0, 1)}}
+                                    </span>
+                                </el-tooltip>
+                            
                             </div>
                             <el-button
                                 class="page-icon"
@@ -70,6 +78,7 @@ export default {
         return {
             roomId: "",
             mode: "compere", //主持人 compere、 画廊
+            joinName: "",
             page: 0,
             pageSize: 3,
             count: 0,
@@ -90,6 +99,13 @@ export default {
     methods: {
         async _initRoom() {
             this.roomId = this.$route.params.roomId;
+
+            this.joinName = sessionStorage.getItem('joinName');
+            this.joinName = this.joinName? this.joinName : 'luleilulalei';
+            
+            this.$set(this.$data, 'turnonMicrophone', eval(sessionStorage.getItem('turnonMicrophone')));
+            this.$set(this.$data, 'turnonVideoCamera', eval(sessionStorage.getItem('turnonVideoCamera')));
+
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             this.videoDevice = videoDevices.length >0?videoDevices[0]:null;
@@ -111,9 +127,11 @@ export default {
             let videoTracks = this.localStream.getVideoTracks();
             if(videoTracks.length !==0){
                 if(this.turnonVideoCamera){
-                    videoTracks[0].applyConstraints({video: this.videoConf});
+                    // videoTracks[0].applyConstraints({video: this.videoConf});
+                    videoTracks[0].enabled = true;
                 }else{
-                    videoTracks[0].applyConstraints({video: false});
+                    // videoTracks[0].applyConstraints({video: false});
+                    videoTracks[0].enabled = false;
                 }
             }
         },
@@ -121,11 +139,12 @@ export default {
             let audioTracks = this.localStream.getAudioTracks();
             console.log(audioTracks);
             if(audioTracks.length !==0){
+                console.log('in render audio ', this.turnonMicrophone);
                 if(this.turnonMicrophone){
-                    audioTracks[0].applyConstraints({audio: true});
+                    audioTracks[0].enabled = true;
                 }else{
                     console.log('turn off audio')
-                    audioTracks[0].applyConstraints({audio: false});
+                    audioTracks[0].enabled = false;
                 }
             }
         },
@@ -142,14 +161,14 @@ export default {
         },
 
         joinRoom(){
-            // const SIGNAL_SERVER = 'https://8.131.49.214'; //prod
-            const SIGNAL_SERVER = 'http://localhost:3456'; //dev
+            const SIGNAL_SERVER = 'https://8.131.49.214'; //prod
+            // const SIGNAL_SERVER = 'http://localhost:3456'; //dev
 
             this.localSocket = this.$socketIoClient(SIGNAL_SERVER);
 
             // this.localSocket.connect()
 
-            this.localSocket.emit('join', this.roomId, 'qjk')
+            this.localSocket.emit('join', this.roomId, this.joinName)
             
             this.localSocket.on('joined', (roomId, localSocketId, roomSockets) => {
                 roomSockets.forEach(socketId => {
@@ -161,9 +180,13 @@ export default {
                 })
             })
 
-            this.localSocket.on('recv-offer', (socketId, remoteDesc) => {
+            this.localSocket.on('other-joined', (roomId, socketId, hisJoinName) => {
+                this.$message(`${hisJoinName} 加入了房间`);
+            })
+
+            this.localSocket.on('recv-offer', (socketId, hisJoinName, remoteDesc) => {
                 //新人加入
-                let pc = this.createPC(socketId)
+                let pc = this.createPC(socketId, hisJoinName)
                 
                 // this.localPCs[socketId] = pc
                 this.getPersonBySocketId(socketId).pc = pc
@@ -176,13 +199,13 @@ export default {
                     offerToReceiveVideo: 1
                 }
                 pc.createAnswer(answerOption).then(desc => this.handleAnswer(socketId, desc)).catch(this.handleAnswerErr)
-                
             })
 
-            this.localSocket.on('recv-answer', (socketId, remoteDesc) => {
+            this.localSocket.on('recv-answer', (socketId, hisJoinName, remoteDesc) => {
                 // this.localPCs[socketId].pc.setRemoteDescription(desc) //设置远端
-                console.log(`recv-answer from ${socketId}: + ${JSON.stringify(remoteDesc)}`)
-                this.getPersonBySocketId(socketId).pc.setRemoteDescription(remoteDesc) //设置远端
+                console.log(`recv-answer from ${socketId}: + ${JSON.stringify(remoteDesc)}`);
+                this.getPersonBySocketId(socketId).pc.setRemoteDescription(remoteDesc); //设置远端
+                this.getPersonBySocketId(socketId).joinName = hisJoinName; //设置远端
             })
 
             this.localSocket.on('recv-candidate', (socketId, candidate)=> {
@@ -216,10 +239,10 @@ export default {
             this.localSocket.emit('leave', this.roomId)
         },
 
-        createPC(socketId){
+        createPC(socketId, joinName){
             this.others.push({
                 socketId: socketId,
-                username: '',
+                joinName: joinName,
                 video: true,
                 audio: true,
                 stream: null,
@@ -273,7 +296,7 @@ export default {
         },
 
         call(socketId){
-            let newPc = this.createPC(socketId)
+            let newPc = this.createPC(socketId, '获取中...')
             
             //媒体协商
             const offerOption = {
@@ -285,10 +308,10 @@ export default {
             newPc.createOffer(offerOption).then(desc => this.handleOffer(socketId, desc)).catch(this.handelOfferErr);
         },
         sendOffer(socketId, desc){
-            this.localSocket.emit('send-offer', socketId, desc)
+            this.localSocket.emit('send-offer', socketId, this.joinName, desc)
         },
         sendAnswer(socketId, desc){
-            this.localSocket.emit('send-answer', socketId, desc)
+            this.localSocket.emit('send-answer', socketId, this.joinName, desc)
         },
         sendIceCandidate(socketId, candidate){
             this.localSocket.emit('exchange-icecandidate', socketId, candidate)
@@ -314,9 +337,11 @@ export default {
         },
         removeOtherBySocketId(socketId){
             let beRemoved = this.getPersonBySocketId(socketId);
+            console.log(beRemoved)
             if(beRemoved && beRemoved.hasOwnProperty('pc') && beRemoved.pc){
                 beRemoved.pc.close(); //关闭连接
             }
+            this.$message(`${beRemoved.joinName} 离开了房间`)
             this.others.splice(this.keyMapIndexOthers[socketId], 1);
         },
         clickturnOnVideoCamera(){
