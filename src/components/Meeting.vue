@@ -21,7 +21,7 @@
                         <el-col :span="3" :push="21">
                             <el-tooltip class="item" effect="dark" placement="left">
                                 <div slot="content">{{joinName}}</div>
-                                <video class="min-list" ref="mainMin" autoplay></video>
+                                <video @click="showMe" class="min-list" ref="mainMin" autoplay></video>
                             </el-tooltip>
                             <el-button
                                 class="page-icon"
@@ -36,7 +36,7 @@
                                  <el-tooltip v-if="(offset - 1 + pageSize * page) < count" class="item" effect="dark" placement="left">
                                      {{others[offset -1  + pageSize * page].joinName}}
                                     <div slot="content">{{others[offset -1  + pageSize * page].joinName}}</div>
-                                    <video autoplay v-if="(offset -1 + pageSize * page) < count && others[offset + pageSize * page -1].video" class="min-list" :ref="'user' + (offset-1)"></video>
+                                    <video @click="showOnBigScreen(offset -1 + pageSize * page)" autoplay v-if="(offset -1 + pageSize * page) < count && others[offset + pageSize * page -1].video" class="min-list" :ref="'user' + (offset-1)"></video>
                                     <span v-else-if="(offset - 1 + pageSize * page) < count" class="min-list">
                                         {{others[offset -1  + pageSize * page].joinName.substr(0, 1)}}
                                     </span>
@@ -233,6 +233,14 @@ export default {
                 this.localSocket.close();
                 this.$router.push('/');
             })
+        },
+
+        showOnBigScreen(index){
+            this.$refs['main-video'].srcObject = this.others[index].stream;
+        },
+
+        showMe(){
+            this.$refs['main-video'].srcObject = this.localStream;
         },
 
         leave(){
