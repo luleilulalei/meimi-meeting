@@ -53,7 +53,10 @@
                         </el-col>
                     </el-row>
                     <el-row style="bottom:5%;position:absolute;width:100%">
-                        <el-col :push="11" :span="3">
+                        <!-- <el-col :push="2" :span="2">
+                            <el-button circle class="el-icon-s-platform" @click="sharePlatform"></el-button>
+                        </el-col> -->
+                        <el-col :push="9" :span="3">
                             <el-button class="microphone-btn" v-if="turnonMicrophone" circle icon="el-icon-microphone" @click="clickturnDownMicrophone"></el-button>
                             <el-button class="microphone-btn" v-else circle icon="el-icon-turn-off-microphone" @click="clickturnOnMicrophone"></el-button>
                             <el-button circle class="hangup-btn" @click="leave">
@@ -161,8 +164,8 @@ export default {
         },
 
         joinRoom(){
-            const SIGNAL_SERVER = 'https://8.131.49.214'; //prod
-            // const SIGNAL_SERVER = 'http://localhost:3456'; //dev
+            // const SIGNAL_SERVER = 'https://8.131.49.214'; //prod
+            const SIGNAL_SERVER = 'http://localhost:3456'; //dev
 
             this.localSocket = this.$socketIoClient(SIGNAL_SERVER);
 
@@ -367,7 +370,8 @@ export default {
         clickturnDownMicrophone(){
             this.turnonMicrophone=false;
             this.renderAudio();
-        }
+        },
+        sharePlatform(){}
     },
     mounted() {
         this._initRoom();
