@@ -3,6 +3,7 @@ import Router from 'vue-router'
 // import HelloWorld from '@/components/HelloWorld'
 // import ChatRoom from '@/components/ChatRoom'
 import Meeting from '@/components/Meeting'
+import WhiteBoard from '@/components/WhiteBoard'
 import Index from '@/components/Index'
 
 
@@ -21,6 +22,11 @@ export default new Router({
       path: '/meeting/:roomId',
       name: 'Meeting',
       component: Meeting
+    },
+    {
+      path: '/white-board',
+      name: 'WhiteBoard',
+      component: WhiteBoard
     }
   ]
 })

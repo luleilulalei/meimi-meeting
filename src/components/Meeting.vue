@@ -1,7 +1,7 @@
 <template>
     <div class="meeting">
         <div class="big-screen">
-            <video class="main-video" ref="main-video" autoplay></video>
+            <video v-show="!showWhiteBoard" class="main-video" ref="main-video" autoplay></video>
         </div>
         <div class="right">
             <el-container>
@@ -14,10 +14,16 @@
                         position: absolute;
                     "
                 >
+                    <white-board v-if="showWhiteBoard" style="position: absolute;z-index:100">
+                        <template v-slot:header>
+                            <el-button type="danger" @click="stopShareBoard">结束共享</el-button>
+                        </template>
+                    </white-board>
+
                     <el-row style="top:0;position:absolute;width:100%">
                         <img src="/static/logo-new.png" style="width:80px;height:80px;opacity: 0.7;">
                     </el-row>
-                    <el-row>
+                    <el-row v-show="!showWhiteBoard">
                         <el-col :span="3" :push="21">
                             <el-tooltip class="item" effect="dark" placement="left">
                                 <div slot="content">{{joinName}}</div>
@@ -52,11 +58,15 @@
                             ></el-button>
                         </el-col>
                     </el-row>
-                    <el-row style="bottom:5%;position:absolute;width:100%">
-                        <!-- <el-col :push="2" :span="2">
-                            <el-button circle class="el-icon-s-platform" @click="sharePlatform"></el-button>
-                        </el-col> -->
-                        <el-col :push="9" :span="3">
+                    <el-row v-show="!showWhiteBoard" style="bottom:5%;position:fixed;width:100%">
+                        <el-col :push="2" :span="2">
+                            <el-button v-if="!showShared" circle class="el-icon-s-platform" @click="sharePlatform"></el-button>
+                            <el-button v-if="showShared" type="danger" @click="stopShare">结束共享</el-button>
+                        </el-col>
+                        <el-col :push="2" :span="2">
+                            <el-button circle class="el-icon-s-platform" @click="shareBoard"></el-button>
+                        </el-col>
+                        <el-col :push="7" :span="3">
                             <el-button class="microphone-btn" v-if="turnonMicrophone" circle icon="el-icon-microphone" @click="clickturnDownMicrophone"></el-button>
                             <el-button class="microphone-btn" v-else circle icon="el-icon-turn-off-microphone" @click="clickturnOnMicrophone"></el-button>
                             <el-button circle class="hangup-btn" @click="leave">
@@ -75,8 +85,13 @@
 </template>
 
 <script>
+import WhiteBoard from './WhiteBoard'
+
 export default {
     name: "Meeting",
+    components: {
+        WhiteBoard
+    },
     data() {
         return {
             roomId: "",
@@ -87,16 +102,16 @@ export default {
             count: 0,
             others: [],
             localStream: null,
+            sharedStream: null,
             showLayer: false,
             turnonMicrophone: true,
             turnonVideoCamera: true,
             currentState: '', // init  joined  connect-one connect-multi 
             localSocket: null,
-            localPCs: [{
-                socketId: '',
-                pc: null
-            }],
+            localPCs: [],
             videoDevice: null,
+            showShared: false,
+            showWhiteBoard: false
         };
     },
     methods: {
@@ -121,6 +136,8 @@ export default {
             this.$refs['main-video'].srcObject = localStream;
             this.$refs.mainMin.srcObject = localStream;
             this.localStream = localStream;
+            console.log('local stream: ', localStream);
+            console.log('local stream tracks: ', localStream.getTracks());
 
             this.renderVideo();
             this.renderAudio();
@@ -140,13 +157,10 @@ export default {
         },
         renderAudio(){
             let audioTracks = this.localStream.getAudioTracks();
-            console.log(audioTracks);
             if(audioTracks.length !==0){
-                console.log('in render audio ', this.turnonMicrophone);
                 if(this.turnonMicrophone){
                     audioTracks[0].enabled = true;
                 }else{
-                    console.log('turn off audio')
                     audioTracks[0].enabled = false;
                 }
             }
@@ -194,7 +208,7 @@ export default {
                 // this.localPCs[socketId] = pc
                 this.getPersonBySocketId(socketId).pc = pc
 
-                console.log(`recv-offer from ${socketId}: + ${JSON.stringify(remoteDesc)}`)
+                //console.log(`recv-offer from ${socketId}: + ${JSON.stringify(remoteDesc)}`)
                 pc.setRemoteDescription(remoteDesc)
                 const answerOption = {
                     iceRestart: false,
@@ -206,14 +220,14 @@ export default {
 
             this.localSocket.on('recv-answer', (socketId, hisJoinName, remoteDesc) => {
                 // this.localPCs[socketId].pc.setRemoteDescription(desc) //设置远端
-                console.log(`recv-answer from ${socketId}: + ${JSON.stringify(remoteDesc)}`);
+                //console.log(`recv-answer from ${socketId}: + ${JSON.stringify(remoteDesc)}`);
                 this.getPersonBySocketId(socketId).pc.setRemoteDescription(remoteDesc); //设置远端
                 this.getPersonBySocketId(socketId).joinName = hisJoinName; //设置远端
             })
 
             this.localSocket.on('recv-candidate', (socketId, candidate)=> {
                 // this.localPCs[socketId].pc.addIceCandidate(candidate)
-                console.log(`recv-candidate from ${socketId}: + ${JSON.stringify(candidate)}`)
+                //console.log(`recv-candidate from ${socketId}: + ${JSON.stringify(candidate)}`)
                 let icecandidate = new RTCIceCandidate({
                     sdpMLineIndex: candidate.sdpMLineIndex,
                     candidate: candidate.candidate
@@ -243,7 +257,7 @@ export default {
         },
 
         showMe(){
-            this.$refs['main-video'].srcObject = this.localStream;
+            this.$refs['main-video'].srcObject = this.$refs.mainMin.srcObject;
         },
 
         leave(){
@@ -273,7 +287,7 @@ export default {
 
             let newPc = new RTCPeerConnection(PC_CONFIG);
 
-            this.getPersonBySocketId(socketId).pc = newPc 
+            this.getPersonBySocketId(socketId).pc = newPc;
 
             newPc.onicecandidate = (e) => {
                 if(e.candidate){
@@ -282,10 +296,9 @@ export default {
                         candidate: e.candidate.candidate
                     }) //把这个传到远端
                 }
-                
             };
 
-            newPc.ontrack = streamObject => this.handleRemoteStream(socketId, streamObject)
+            newPc.ontrack = streamObject => this.handleRemoteStream(socketId, streamObject);
 
             this.localStream
                 .getTracks()
@@ -293,11 +306,11 @@ export default {
                     newPc.addTrack(track, this.localStream)
                 );
 
-            return newPc
+            return newPc;
         },
-
         handleRemoteStream(socketId, streamObject){
             // console.log('recv-remote-stream from '+socketId, streamObject)
+            console.log('occur addTrack: ', socketId, streamObject);
             this.getPersonBySocketId(socketId).stream = streamObject.streams[0];
             this.renderUserMinList();
             // let index = this.keyMapIndexOthers[socketId]
@@ -329,12 +342,12 @@ export default {
         },
         handleOffer(socketId, desc){
             this.getPersonBySocketId(socketId).pc.setLocalDescription(desc)
-            console.log('build offer desc: '+ JSON.stringify(desc))
+            //console.log('build offer desc: '+ JSON.stringify(desc))
             this.sendOffer(socketId, desc)
         },
         handleAnswer(socketId, desc){
             this.getPersonBySocketId(socketId).pc.setLocalDescription(desc)
-            console.log('build answer desc: '+ JSON.stringify(desc))
+            //console.log('build answer desc: '+ JSON.stringify(desc))
             this.sendAnswer(socketId, desc)
         },
         handelOfferErr(e){
@@ -348,7 +361,7 @@ export default {
         },
         removeOtherBySocketId(socketId){
             let beRemoved = this.getPersonBySocketId(socketId);
-            console.log(beRemoved)
+            //console.log(beRemoved);
             if(beRemoved && beRemoved.hasOwnProperty('pc') && beRemoved.pc){
                 beRemoved.pc.close(); //关闭连接
             }
@@ -371,7 +384,61 @@ export default {
             this.turnonMicrophone=false;
             this.renderAudio();
         },
-        sharePlatform(){}
+        sharePlatform(){
+            let self = this;
+            navigator.mediaDevices.getDisplayMedia({
+                video: {
+                    width: 1920,
+                    height: 603
+                },
+                audio: true
+            }).then(stream => {
+                self.sharedStream = stream;
+                self.$refs['main-video'].srcObject = self.sharedStream;
+                console.log(self.$refs.mainMin);
+                self.$refs.mainMin.srcObject = stream;
+                console.log('mainMin ref', self.$refs.mainMin.srcObject);
+                console.log('shared stream: ', stream);
+                self.showShared = true;
+                self.others.forEach(member => {
+                    console.log(member.pc.getSenders());
+                    for(let i in member.pc.getSenders()){
+                        let sender = member.pc.getSenders()[i];
+                        let filterTrack = self.sharedStream.getTracks().filter(track => track.kind == sender.track.kind);
+                        if(filterTrack.length != 0){
+                            sender.replaceTrack(filterTrack[0]);
+                        }
+                    }
+                })
+            });
+        },
+        changeVideoTrack(){
+            this.showShared = false;
+            this.$refs['main-video'].srcObject = this.localStream;
+            this.$refs.mainMin.srcObject = this.localStream;
+
+            this.others.forEach(member => {
+                console.log(member.pc.getSenders());
+                for(let i in member.pc.getSenders()){
+                    let sender = member.pc.getSenders()[i];
+                    let filterTrack = this.localStream.getTracks().filter(track => track.kind == sender.track.kind);
+                    if(filterTrack.length != 0){
+                        sender.replaceTrack(filterTrack[0]);
+                    }
+                }
+            })
+        },
+        stopShare(){
+            this.changeVideoTrack();
+        },
+        shareBoard(){
+            this.showWhiteBoard = true;
+            this.sharePlatform();
+        },
+        stopShareBoard(){
+            this.showWhiteBoard = false;
+            this.changeVideoTrack();
+        }
     },
     mounted() {
         this._initRoom();
@@ -412,6 +479,8 @@ video.main-video {
     height: 100%;
     opacity: 0.6;
 }
+
+
 
 .min-list {
     width: 173.33px;

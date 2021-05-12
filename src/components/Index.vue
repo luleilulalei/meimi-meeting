@@ -44,7 +44,7 @@
                         </el-col>
                     </el-row>
                     <el-row style="bottom:5%;position:relative;width:100%">
-                        <el-col :push="11" :span="3">
+                        <el-col :push="11" :span="6">
                             <el-button class="microphone-btn" v-if="turnonMicrophone" circle icon="el-icon-microphone" @click="clickturnDownMicrophone"></el-button>
                             <el-button class="microphone-btn" v-else circle icon="el-icon-turn-off-microphone" @click="clickturnOnMicrophone"></el-button>
                             <el-button v-if="turnonVideoCamera" circle icon="el-icon-video-camera" @click="clickturnDownVideoCamera"></el-button>
@@ -124,7 +124,9 @@ export default {
         },
         showDialog(){
             this.dialogVisible = true;
-            this.$nextTick(function() { this.$refs.videoBackup.srcObject = this.localStream })
+            this.$nextTick(function() { 
+                this.$refs.videoBackup.srcObject = this.localStream; 
+            })
         },
         renderVideo(){
             let videoTracks = this.localStream.getVideoTracks();

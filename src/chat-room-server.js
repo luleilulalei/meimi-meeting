@@ -17,7 +17,6 @@ io.sockets.on('connection', socket => {
         
         socket.join(roomId);
         
-
         let myRoom = io.sockets.adapter.rooms[roomId];
         let users = 0;
         if(myRoom){
