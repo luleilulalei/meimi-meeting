@@ -50,6 +50,10 @@ io.sockets.on('connection', socket => {
         socket.in(roomId).emit('message', socket.id, message); //P2P 转发, 转发 icecandidate
     });
 
+    socket.on('say', (roomId, msg) => {
+        socket.to(roomId).emit('recv-say', socket.id, msg);
+    })
+
     socket.on('leave', (roomId) => {
         socket.in(roomId).emit('recv-bye', socket.id);
         socket.emit('recv-leaved', roomId, socket.id);

@@ -59,14 +59,17 @@
                         </el-col>
                     </el-row>
                     <el-row v-show="!showWhiteBoard" style="bottom:5%;position:fixed;width:100%">
-                        <el-col :push="2" :span="2">
-                            <el-button v-if="!showShared" circle class="el-icon-s-platform" @click="sharePlatform"></el-button>
-                            <el-button v-if="showShared" type="danger" @click="stopShare">结束共享</el-button>
+                        <el-col :push="2" :span="3">
+                            <el-button type="text" plain circle class="el-icon-chat-dot-square page-icon" @click="showDrawer = true"></el-button>
+                            <el-button type="text"
+                                plain v-if="!showShared" circle class="el-icon-s-platform page-icon" @click="sharePlatform"></el-button>
+                            <el-button size="mini" v-else type="danger" @click="stopShare">结束共享</el-button>
+                            <el-button type="text"
+                                plain style="color: #fff" circle class="el-icon-s-open page-icon" @click="shareBoard"></el-button>
                         </el-col>
-                        <el-col :push="2" :span="2">
-                            <el-button circle class="el-icon-s-platform" @click="shareBoard"></el-button>
-                        </el-col>
-                        <el-col :push="7" :span="3">
+                        <!-- <el-col :push="2" :span="2">
+                        </el-col> -->
+                        <el-col :push="8" :span="3">
                             <el-button class="microphone-btn" v-if="turnonMicrophone" circle icon="el-icon-microphone" @click="clickturnDownMicrophone"></el-button>
                             <el-button class="microphone-btn" v-else circle icon="el-icon-turn-off-microphone" @click="clickturnOnMicrophone"></el-button>
                             <el-button circle class="hangup-btn" @click="leave">
@@ -81,16 +84,20 @@
                 </el-main>
             </el-container>
         </div>
+        <chat-drawer :recordContent='chatRecords' :drawer='showDrawer' @change-drawer="closeChatDrawer" @say='sayTo'>
+        </chat-drawer>
     </div>
 </template>
 
 <script>
 import WhiteBoard from './WhiteBoard'
+import ChatDrawer from './ChatDrawer'
 
 export default {
     name: "Meeting",
     components: {
-        WhiteBoard
+        WhiteBoard,
+        ChatDrawer
     },
     data() {
         return {
@@ -111,7 +118,9 @@ export default {
             localPCs: [],
             videoDevice: null,
             showShared: false,
-            showWhiteBoard: false
+            showWhiteBoard: false,
+            showDrawer: false,
+            chatRecords: []
         };
     },
     methods: {
@@ -184,6 +193,7 @@ export default {
             this.localSocket = this.$socketIoClient(SIGNAL_SERVER);
 
             // this.localSocket.connect()
+            console.log(this.localSocket);
 
             this.localSocket.emit('join', this.roomId, this.joinName)
             
@@ -192,13 +202,21 @@ export default {
                     if(localSocketId !== socketId){
                         //把自己移除掉
                         //call 房间里的每个人
-                        this.call(socketId)
+                        this.call(socketId);
+                    }else{
+                        console.log('get me: ', localSocketId);
                     }
                 })
             })
 
             this.localSocket.on('other-joined', (roomId, socketId, hisJoinName) => {
                 this.$message(`${hisJoinName} 加入了房间`);
+                this.chatRecords.push({
+                    nickName: this.getPersonBySocketId(socketId).joinName,
+                    timestamp: '',
+                    contactText: msg,
+                    mineMsg: false
+                })
             })
 
             this.localSocket.on('recv-offer', (socketId, hisJoinName, remoteDesc) => {
@@ -249,6 +267,15 @@ export default {
                 this.others = [];
                 this.localSocket.close();
                 this.$router.push('/');
+            })
+
+            this.localSocket.on('recv-say', (socketId, msg) => {
+                this.chatRecords.push({
+                    nickName: this.getPersonBySocketId(socketId).joinName,
+                    timestamp: '',
+                    contactText: msg,
+                    mineMsg: false
+                })
             })
         },
 
@@ -395,17 +422,17 @@ export default {
             }).then(stream => {
                 self.sharedStream = stream;
                 self.$refs['main-video'].srcObject = self.sharedStream;
-                console.log(self.$refs.mainMin);
                 self.$refs.mainMin.srcObject = stream;
-                console.log('mainMin ref', self.$refs.mainMin.srcObject);
                 console.log('shared stream: ', stream);
+                console.log('shared stream tracks: ', stream.getTracks());
                 self.showShared = true;
                 self.others.forEach(member => {
                     console.log(member.pc.getSenders());
                     for(let i in member.pc.getSenders()){
                         let sender = member.pc.getSenders()[i];
                         let filterTrack = self.sharedStream.getTracks().filter(track => track.kind == sender.track.kind);
-                        if(filterTrack.length != 0){
+                        if(filterTrack.length != 0 && filterTrack.kind == 'video'){
+                            console.log('replace sender track: ', sender, filterTrack[0]);
                             sender.replaceTrack(filterTrack[0]);
                         }
                     }
@@ -438,6 +465,19 @@ export default {
         stopShareBoard(){
             this.showWhiteBoard = false;
             this.changeVideoTrack();
+        },
+        closeChatDrawer(val){
+            this.showDrawer = val;
+        },
+        sayTo(msg){
+            let self = this;
+            this.localSocket.emit('say', self.roomId, msg);
+            this.chatRecords.push({
+                nickName: self.joinName,
+                timestamp: '',
+                contactText: msg,
+                mineMsg: true
+            })
         }
     },
     mounted() {
@@ -480,6 +520,15 @@ video.main-video {
     opacity: 0.6;
 }
 
+/* .el-button, .el-button:focus:not(.el-button:hover){ 
+    margin-right: 12px;
+    border: 1px solid #2794f8;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #f4f4f4;
+    color: #2794f8;
+    background: white;
+} */
+
 
 
 .min-list {
@@ -501,7 +550,7 @@ video.main-video {
 
 .page-icon {
     color: #fff;
-    display: block;
+    /* display: block; */
     margin: 0 auto;
 }
 

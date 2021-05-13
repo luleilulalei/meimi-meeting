@@ -1,10 +1,9 @@
 import Vue from 'vue'
 import Router from 'vue-router'
-// import HelloWorld from '@/components/HelloWorld'
-// import ChatRoom from '@/components/ChatRoom'
 import Meeting from '@/components/Meeting'
 import WhiteBoard from '@/components/WhiteBoard'
 import Index from '@/components/Index'
+import ChatDrawer from '@/components/ChatDrawer'
 
 
 Vue.use(Router)
@@ -27,6 +26,11 @@ export default new Router({
       path: '/white-board',
       name: 'WhiteBoard',
       component: WhiteBoard
+    },
+    {
+      path: '/chat-drawer',
+      name: 'ChatDrawer',
+      component: ChatDrawer
     }
   ]
 })

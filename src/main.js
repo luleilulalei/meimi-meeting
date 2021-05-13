@@ -8,12 +8,14 @@ import webrtcadapter from 'webrtc-adapter'
 import Elementui from 'element-ui'
 import { Message } from 'element-ui';
 import 'element-ui/lib/theme-chalk/index.css';
+import less from 'less'
 
 Vue.config.productionTip = false
 
 Vue.prototype.$socketIoClient = socketIoClient
 // Vue.prototype.$message = Message;
 Vue.use(Elementui)
+Vue.use(less)
 
 
 /* eslint-disable no-new */
