@@ -19,6 +19,8 @@
                             <el-button type="danger" @click="stopShareBoard">结束共享</el-button>
                         </template>
                     </white-board>
+                    <div id="bgwhite" v-if="showWhiteBoard" style="position: absolute;z-index:90;width:100%;height:100%;background-color:#fff">
+                    </div>
 
                     <el-row style="top:0;position:absolute;width:100%">
                         <img src="/static/logo-new.png" style="width:80px;height:80px;opacity: 0.7;">
@@ -187,8 +189,8 @@ export default {
         },
 
         joinRoom(){
-            // const SIGNAL_SERVER = 'https://8.131.49.214'; //prod
-            const SIGNAL_SERVER = 'http://localhost:3456'; //dev
+            const SIGNAL_SERVER = 'https://8.131.49.214'; //prod
+            // const SIGNAL_SERVER = 'http://localhost:3456'; //dev
 
             this.localSocket = this.$socketIoClient(SIGNAL_SERVER);
 
@@ -211,12 +213,6 @@ export default {
 
             this.localSocket.on('other-joined', (roomId, socketId, hisJoinName) => {
                 this.$message(`${hisJoinName} 加入了房间`);
-                this.chatRecords.push({
-                    nickName: this.getPersonBySocketId(socketId).joinName,
-                    timestamp: '',
-                    contactText: msg,
-                    mineMsg: false
-                })
             })
 
             this.localSocket.on('recv-offer', (socketId, hisJoinName, remoteDesc) => {
@@ -431,7 +427,7 @@ export default {
                     for(let i in member.pc.getSenders()){
                         let sender = member.pc.getSenders()[i];
                         let filterTrack = self.sharedStream.getTracks().filter(track => track.kind == sender.track.kind);
-                        if(filterTrack.length != 0 && filterTrack.kind == 'video'){
+                        if(filterTrack.length != 0){
                             console.log('replace sender track: ', sender, filterTrack[0]);
                             sender.replaceTrack(filterTrack[0]);
                         }

@@ -94,7 +94,7 @@ export default {
 
             canvas.width = pageWidth;
             canvas.height = pageHeight;
-            this.setCanvasBg("white");
+            // this.setCanvasBg("white");
         },
         setCanvasBg(color) {
             this.ctx.fillStyle = color;

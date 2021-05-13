@@ -55,19 +55,7 @@ export default {
     data() {
         return {
             direction: 'ltr',
-            inputContent: '',
-            recordContent: [ {
-                    nickName: 'qjk',
-                    timestamp: '',
-                    contactText: 'ehheejlkda',
-                    mineMsg: true
-                },{
-                    nickName: 'qjk',
-                    timestamp: '',
-                    contactText: 'ehheejlkda',
-                    mineMsg: true
-                },
-            ]
+            inputContent: ''
         };
     },
     computed: {
