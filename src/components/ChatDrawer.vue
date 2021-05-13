@@ -16,8 +16,8 @@
                     <div class="word" v-if="!itemc.mineMsg">
                         <!-- <img :src="itemc.headUrl"> -->
                         <div class="info">
-                                <p class="time">{{itemc.nickName}}  {{itemc.timestamp}}</p>
-                                <div class="info-content">{{itemc.contactText}}</div>
+                            <p class="time">{{itemc.nickName}}  {{itemc.timestamp}}</p>
+                            <div class="info-content">{{itemc.contactText}}</div>
                         </div>
                     </div>
                     <!-- 我的 -->
